@@ -1,16 +1,33 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Excalidraw, convertToExcalidrawElements, CaptureUpdateAction, MainMenu } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
-import { Plus, PanelLeftOpen, Save, Moon, Sun, Minus, Maximize, MoreHorizontal, HelpCircle } from 'lucide-react';
+import { Plus, PanelLeftOpen, Save, Moon, Sun, Minus, Maximize, MoreHorizontal, HelpCircle, Undo2, Redo2 } from 'lucide-react';
 import { createBoard, type BoardDocument, type OpenBoard, type LibraryEntry } from './contract';
 import { branchPlacement } from './branches';
 import { LibrarySidebar } from './library/LibrarySidebar';
 import { ToolsetsPanel, type ToolsetId } from './tools/ToolsetsPanel';
 import { DocsPanel } from './docs/DocsPanel';
 import { THEME_PRESETS, themeBackground } from './themes';
+import { Flip, gsap, useGSAP, flipVars, motionVars, prefersReducedMotion } from './motion';
 
 const persistedState = (s: any) => Object.fromEntries(['currentItemStrokeColor','currentItemBackgroundColor','currentItemFillStyle','currentItemStrokeWidth','currentItemStrokeStyle','currentItemRoughness','currentItemOpacity','currentItemFontFamily','currentItemFontSize','currentItemTextAlign','currentItemStartArrowhead','currentItemEndArrowhead'].map(k => [k, s[k]]));
 const clone = <T,>(v: T): T => structuredClone(v);
+
+/** Excalidraw API only exposes history.clear — invoke undo/redo via its key handlers on document. */
+const excalidrawHistory = (kind: 'undo' | 'redo') => {
+  const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+  const target = document.querySelector('.excalidraw') as HTMLElement | null;
+  target?.focus?.({ preventScroll: true });
+  document.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'z',
+    code: 'KeyZ',
+    metaKey: mac,
+    ctrlKey: !mac,
+    shiftKey: kind === 'redo',
+    bubbles: true,
+    cancelable: true,
+  }));
+};
 
 export default function App() {
   const [doc, setDoc] = useState<BoardDocument>(() => createBoard());
@@ -23,8 +40,84 @@ export default function App() {
   const pending = useRef<null | (() => Promise<void>)>(null), saving = useRef<Promise<boolean> | null>(null), renaming = useRef<Promise<void> | null>(null), lastSignature = useRef('');
   const boardGen = useRef(0), lastRenamedTitle = useRef(doc.title);
   const [camera, setCamera] = useState(doc.camera); const importing = useRef<HTMLInputElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const emptyRef = useRef<HTMLDivElement>(null);
+  const modalScrimRef = useRef<HTMLDivElement>(null);
+  const pendingSidebarFlip = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const closingError = useRef(false);
 
   const setHandle = useCallback((h: string | null) => { handle.current = h; setActiveHandle(h); }, []);
+
+  const setSidebarWithFlip = useCallback((next: boolean) => {
+    const root = workspaceRef.current;
+    if (root) {
+      pendingSidebarFlip.current = Flip.getState(root.querySelectorAll('[data-flip-id="library"], [data-flip-id="board-surface"]'));
+    }
+    setSidebar(next);
+  }, []);
+
+  useGSAP(() => {
+    const state = pendingSidebarFlip.current;
+    if (!state) return;
+    pendingSidebarFlip.current = null;
+    Flip.from(state, flipVars({
+      duration: prefersReducedMotion() ? 0 : 0.18,
+      ease: 'power2.out',
+      nested: true,
+      absolute: false,
+      onEnter: (els: Element[]) => gsap.fromTo(els, { autoAlpha: 0 }, motionVars({ autoAlpha: 1, duration: 0.14 })),
+      onLeave: (els: Element[]) => gsap.to(els, motionVars({ autoAlpha: 0, duration: 0.1 })),
+    }));
+  }, { dependencies: [sidebar], scope: workspaceRef });
+
+  useGSAP(() => {
+    const empty = emptyRef.current;
+    if (!empty) return;
+    if (prefersReducedMotion()) {
+      gsap.set(empty.children, { clearProps: 'all' });
+      return;
+    }
+    gsap.fromTo(
+      empty.children,
+      { y: 8, autoAlpha: 0 },
+      motionVars({ y: 0, autoAlpha: 1, stagger: 0.04, duration: 0.16 }),
+    );
+  }, { dependencies: [doc.scene.elements.filter(e => !e.isDeleted).length === 0], scope: emptyRef });
+
+  useGSAP(() => {
+    const scrim = modalScrimRef.current;
+    if (!error || !scrim) return;
+    closingError.current = false;
+    const modal = scrim.querySelector('.modal');
+    if (prefersReducedMotion()) {
+      gsap.set([scrim, modal], { clearProps: 'all', autoAlpha: 1 });
+      return;
+    }
+    gsap.fromTo(scrim, { autoAlpha: 0 }, motionVars({ autoAlpha: 1, duration: 0.14 }));
+    if (modal) {
+      gsap.fromTo(modal, { y: 12, autoAlpha: 0 }, motionVars({ y: 0, autoAlpha: 1, duration: 0.16 }));
+    }
+  }, { dependencies: [error], scope: modalScrimRef });
+
+  const { contextSafe } = useGSAP({ scope: modalScrimRef });
+
+  const dismissError = contextSafe((after?: () => void) => {
+    const scrim = modalScrimRef.current;
+    const finish = () => {
+      setError(null);
+      setRecover(null);
+      after?.();
+    };
+    if (!scrim || prefersReducedMotion() || closingError.current) {
+      finish();
+      return;
+    }
+    closingError.current = true;
+    const modal = scrim.querySelector('.modal');
+    const tl = gsap.timeline({ onComplete: finish });
+    if (modal) tl.to(modal, motionVars({ y: 8, autoAlpha: 0, duration: 0.12, ease: 'power2.in' }), 0);
+    tl.to(scrim, motionVars({ autoAlpha: 0, duration: 0.12 }), 0);
+  });
 
   const refresh = useCallback(async () => {
     const r = await window.board.library();
@@ -317,26 +410,26 @@ export default function App() {
         )}
       </header>
 
-      <div className="workspace">
-        {sidebar && (
-          <LibrarySidebar
-            library={library}
-            folder={folder}
-            activeHandle={activeHandle}
-            onNew={() => void act('new')}
-            onOpen={h => void open(h)}
-            onHide={() => setSidebar(false)}
-            onReveal={() => void act('reveal')}
-            onRename={(h, title) => void renameFromUi(h, title)}
-          />
-        )}
+      <div className="workspace" ref={workspaceRef}>
+        <LibrarySidebar
+          open={sidebar}
+          library={library}
+          folder={folder}
+          activeHandle={activeHandle}
+          onNew={() => void act('new')}
+          onOpen={h => void open(h)}
+          onHide={() => setSidebarWithFlip(false)}
+          onReveal={() => void act('reveal')}
+          onRename={(h, title) => void renameFromUi(h, title)}
+        />
 
-        <main className="board-surface" style={background} onDropCapture={imageEvent} onPasteCapture={imageEvent} onDragOver={e => e.preventDefault()}>
-          {!sidebar && <button type="button" className="show-library floating" title="Show library" onClick={() => setSidebar(true)}><PanelLeftOpen size={18} /></button>}
+        <main className="board-surface" data-flip-id="board-surface" style={background} onDropCapture={imageEvent} onPasteCapture={imageEvent} onDragOver={e => e.preventDefault()}>
+          {!sidebar && <button type="button" className="show-library floating" title="Show library" onClick={() => setSidebarWithFlip(true)}><PanelLeftOpen size={18} /></button>}
 
           <Excalidraw
             key={epoch}
             excalidrawAPI={setApi}
+            handleKeyboardGlobally
             initialData={{
               elements: doc.scene.elements,
               files: doc.scene.files,
@@ -374,7 +467,7 @@ export default function App() {
           />
 
           {doc.scene.elements.filter(e => !e.isDeleted).length === 0 && (
-            <div className="empty-canvas">
+            <div className="empty-canvas" ref={emptyRef}>
               <span className="eyebrow">A LITTLE SPACE FOR BIG IDEAS</span>
               <h1>Start anywhere.</h1>
               <p>A thought, an image, a connection.<br />Make room for what comes next.</p>
@@ -385,6 +478,9 @@ export default function App() {
           <div className="canvas-footer">
             <span className="hint">Space + drag to explore · Scroll to zoom</span>
             <div className="canvas-settings floating">
+              <button type="button" title="Undo" aria-label="Undo" onClick={() => excalidrawHistory('undo')}><Undo2 size={15} /></button>
+              <button type="button" title="Redo" aria-label="Redo" onClick={() => excalidrawHistory('redo')}><Redo2 size={15} /></button>
+              <span className="canvas-settings-sep" aria-hidden="true" />
               <select aria-label="Theme preset" value="" onChange={e => {
                 const preset = THEME_PRESETS.find(p => p.id === e.target.value);
                 if (preset) applyTheme({ ...preset.theme });
@@ -422,7 +518,7 @@ export default function App() {
       <DocsPanel open={docsOpen} onClose={() => setDocsOpen(false)} />
 
       {error && (
-        <div className="modal-scrim">
+        <div className="modal-scrim" ref={modalScrimRef}>
           <div className="modal" role="alertdialog" aria-modal="true" aria-label="Board needs attention">
             <span className="eyebrow">LET’S KEEP YOUR IDEAS SAFE</span>
             <h2>A little attention needed.</h2>
@@ -431,16 +527,31 @@ export default function App() {
               {recover ? (
                 <button type="button" onClick={async () => {
                   const r = await window.board.recover(recover);
-                  if (r.ok) { load(r.value); setRecover(null); setError(null); } else setError(r.error);
+                  if (r.ok) { load(r.value); setRecover(null); dismissError(); } else setError(r.error);
                 }}>Open recovery copy</button>
               ) : (
                 <>
-                  <button type="button" onClick={async () => { setError(null); if (await flush()) { const action = pending.current; pending.current = null; await action?.(); } }}>Retry save</button>
-                  <button type="button" onClick={async () => { if (await saveAs()) { const action = pending.current; pending.current = null; await action?.(); } }}>Save as…</button>
+                  <button type="button" onClick={() => {
+                    dismissError(async () => {
+                      if (await flush()) { const action = pending.current; pending.current = null; await action?.(); }
+                    });
+                  }}>Retry save</button>
+                  <button type="button" onClick={async () => {
+                    if (await saveAs()) {
+                      const action = pending.current;
+                      pending.current = null;
+                      dismissError(async () => { await action?.(); });
+                    }
+                  }}>Save as…</button>
                 </>
               )}
-              <button type="button" className="secondary" onClick={() => { setError(null); setRecover(null); pending.current = null; }}>Keep editing</button>
-              {pending.current && <button type="button" className="danger" onClick={async () => { const action = pending.current; pending.current = null; setError(null); window.board.setDirty(false); await action?.(); }}>Discard changes & continue</button>}
+              <button type="button" className="secondary" onClick={() => { pending.current = null; dismissError(); }}>Keep editing</button>
+              {pending.current && <button type="button" className="danger" onClick={() => {
+                const action = pending.current;
+                pending.current = null;
+                window.board.setDirty(false);
+                dismissError(async () => { await action?.(); });
+              }}>Discard changes & continue</button>}
             </div>
           </div>
         </div>

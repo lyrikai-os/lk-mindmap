@@ -1,6 +1,6 @@
 # Toolsets
 
-Three toolsets sit on the left of the canvas. Tap a name to expand or collapse it. Only one section is open at a time.
+Three toolsets sit on the **right** of the canvas. Tap a name to expand or collapse it. Only one section is open at a time.
 
 ## Clean Studio
 

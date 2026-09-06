@@ -8,16 +8,17 @@ The canvas is the main workspace — an infinite surface where your board lives.
 
 ## Empty state
 
-A new board shows a gentle prompt in the center: *Start anywhere.* Tap **Plant your first idea** to drop your first Clean Studio node, or use a toolset on the left to begin another way.
+A new board shows a gentle prompt in the center: *Start anywhere.* Tap **Plant your first idea** to drop your first Clean Studio node, or use a toolset on the right to begin another way.
 
 ## Footer controls
 
 Along the bottom you will find:
 
 - A hint for pan and zoom gestures
-- **Board background** color picker
-- **Grid** style — dots, lines, or none
+- **Undo** and **Redo** — also via ⌘Z / ⇧⌘Z (Ctrl on Windows/Linux), or the app **Edit** menu on desktop
+- **Theme…** presets, board background, and grid color
+- **Grid** style — dots, lines, or none — and **Gap** spacing
 - **Zoom out**, current zoom percentage, **Zoom in**
 - **Fit board** — frames everything on screen
 
-These settings affect how the board looks going forward. They do not recolor ideas you have already placed.
+These settings affect how the board looks going forward. They do not recolor ideas you have already placed. There is no separate floating Undo chip outside this bar.

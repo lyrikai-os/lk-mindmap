@@ -6,7 +6,7 @@
   --surface-elevated: #f3f5f7;
   --board: #f6f7f9;
   --text: #1a1d21;
-  --text-muted: #6b7380;
+  --text-muted: #5f6773;
   --border: #d5dae0;
   --accent: #2f8f7b;
   --accent-soft: #e5f0eb;
@@ -28,7 +28,7 @@
   --surface-elevated: #30363e;
   --board: #1e2228;
   --text: #e8eaed;
-  --text-muted: #9aa3ad;
+  --text-muted: #a8b0ba;
   --border: #3c4450;
   --accent: #4db6a0;
   --accent-soft: #243832;
@@ -238,8 +238,26 @@ select:focus-visible {
   background: var(--shell);
   color: #e8eaed;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 12px 12px 14px;
+  overflow: hidden;
+  /* Width/collapse driven by GSAP Flip — avoid CSS transition fights */
+  transition: none;
+}
+
+.library.is-collapsed {
+  width: 0;
+  flex-basis: 0;
+  border-right-width: 0;
+  pointer-events: none;
+}
+
+.library-chrome {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  flex: 1;
+  min-height: 0;
+  width: 268px;
+  padding: 12px 12px 14px;
 }
 
 .section-head {
@@ -248,7 +266,7 @@ select:focus-visible {
   justify-content: space-between;
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: rgba(232, 234, 237, 0.55);
+  color: rgba(232, 234, 237, 0.68);
 }
 
 .section-head button {
@@ -292,7 +310,7 @@ select:focus-visible {
 
 .library-heading span {
   font-weight: 500;
-  color: rgba(232, 234, 237, 0.45);
+  color: rgba(232, 234, 237, 0.65);
 }
 
 .board-list {
@@ -359,7 +377,7 @@ select:focus-visible {
   display: block;
   margin-top: 2px;
   font-size: 11px;
-  color: rgba(232, 234, 237, 0.5);
+  color: rgba(232, 234, 237, 0.65);
 }
 
 .folder-link {
@@ -386,7 +404,7 @@ select:focus-visible {
 .local-note {
   margin: 0 8px;
   font-size: 11px;
-  color: rgba(232, 234, 237, 0.42);
+  color: rgba(232, 234, 237, 0.65);
 }
 
 .board-surface {
@@ -420,8 +438,9 @@ select:focus-visible {
   opacity: 1;
 }
 
+/* Hide Excalidraw bottom footer — Undo/Redo live in LYRIKAI .canvas-settings. */
 .board-surface .excalidraw .layer-ui__wrapper__footer {
-  opacity: 0.7;
+  display: none !important;
 }
 
 .floating {
@@ -462,7 +481,7 @@ select:focus-visible {
   place-items: center;
   width: 28px;
   flex-shrink: 0;
-  color: rgba(232, 234, 237, 0.55);
+  color: rgba(232, 234, 237, 0.72);
   opacity: 0;
 }
 
@@ -524,6 +543,33 @@ select:focus-visible {
   margin: 4px 0 0;
   font-size: 22px;
   letter-spacing: -0.02em;
+}
+
+.docs-head .eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.docs-intro {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.docs-head button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+
+.docs-head button:hover {
+  background: var(--surface-elevated);
+  color: var(--text);
 }
 
 .docs-lanes {
@@ -830,6 +876,23 @@ select:focus-visible {
 
 .canvas-settings button:hover {
   background: var(--surface-elevated);
+}
+
+.canvas-settings-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.docs-scrim,
+.docs-panel,
+.modal-scrim,
+.modal,
+.empty-canvas {
+  /* Shell enter/exit owned by GSAP — don't double-tween with CSS */
+  transition: none;
 }
 
 .modal-scrim {
