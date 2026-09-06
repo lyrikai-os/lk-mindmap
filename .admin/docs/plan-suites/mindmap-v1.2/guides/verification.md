@@ -16,7 +16,7 @@ Run from `lk-mindmap_v1/`:
 
 Manual (code-complete): library collapse Flip via `data-flip-id="library"`; Docs Flip+SplitText; modal enter/exit; empty-canvas chrome stagger.
 
-**Carried dirt note:** concurrent `mindmap-v1.2-chrome` Undo/Redo footer + Excalidraw footer hide CSS/docs copy also present in working tree — outside pure GSAP END-GOAL; disclosed for Admin/Adversary.
+**Co-land:** combined tip with `mindmap-v1.2-chrome` (chrome + GSAP). Locks and SHAs: [CO-LAND-v1.2.md](../../CO-LAND-v1.2.md).
 
 Limitations: unsigned package not rebuilt this run; Playwright uses Vite+browser bridge; gears HOLD; Admin preview/merge not claimed.
 

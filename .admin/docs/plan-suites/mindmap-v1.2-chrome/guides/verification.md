@@ -16,6 +16,6 @@ Run from `lk-mindmap_v1/`:
 
 Adversary (guide-only): collision PASS; history path fixed after Watcher FAIL on window-target; Docs left-side leftover fixed.
 
-Limitations / HOLD: unsigned package (not re-run this suite); Admin preview/merge; tip wiki research paragraph; gears HOLD; shell↔Excalidraw dark theme sync out of suite. Working tree may also carry concurrent `mindmap-v1.2` motion (GSAP) — disclose if landed in same commit.
+Limitations / HOLD: unsigned package (not re-run this suite); Admin preview/merge; tip wiki research paragraph; gears HOLD; shell↔Excalidraw dark theme sync out of suite. **Co-land:** combined tip with `mindmap-v1.2` (chrome + GSAP). Locks and SHAs: [CO-LAND-v1.2.md](../../CO-LAND-v1.2.md).
 
 Preview: sticky port **5210** — `http://127.0.0.1:5210`.
