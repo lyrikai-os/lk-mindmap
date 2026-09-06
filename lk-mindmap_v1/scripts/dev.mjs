@@ -1,0 +1,12 @@
+import { createServer } from 'vite';
+import { spawn } from 'node:child_process';
+import electron from 'electron';
+import { assets, electronBuild } from './build.mjs';
+await assets();
+await electronBuild();
+const server = await createServer({ server: { host: '127.0.0.1', port: 3197, strictPort: false } });
+await server.listen();
+const address = server.httpServer.address();
+const child = spawn(electron, ['.'], { stdio: 'inherit', env: { ...process.env, VITE_DEV_SERVER_URL: `http://127.0.0.1:${address.port}` } });
+child.on('exit', async code => { await server.close(); process.exit(code || 0); });
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));
