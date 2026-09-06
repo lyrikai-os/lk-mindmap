@@ -52,6 +52,14 @@ describe('portable board persistence',()=>{
  it('duplicates with distinct identity and first-save unique filenames',async()=>{
  const first=await store.save(null,createBoard());const copy=await store.duplicate(first.document);expect(copy.document.id).not.toBe(first.document.id);expect(copy.filename).not.toBe(first.filename);expect((await store.library()).boards).toHaveLength(2);
  });
+ it('bumps updatedAt on every successful save while keeping createdAt',async()=>{
+ const first=await store.save(null,createBoard());
+ const created=first.document.createdAt;
+ await new Promise(r=>setTimeout(r,8));
+ const second=await store.save(first.handle,{...first.document,title:'Later'});
+ expect(second.document.createdAt).toBe(created);
+ expect(Date.parse(second.document.updatedAt)).toBeGreaterThan(Date.parse(first.document.updatedAt));
+ });
  it('renames board title and file within the boards folder',async()=>{
  const first=await store.save(null,{...createBoard(),title:'Morning ideas'});
  const renamed=await store.rename(first.handle,'Evening board');

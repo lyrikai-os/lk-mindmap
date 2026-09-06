@@ -69,7 +69,8 @@ export class BoardStorage {
     finally {await fd?.close();await fs.unlink(tmp).catch(()=>{});}
   }
   async save(handle:string|null, input:BoardDocument): Promise<OpenBoard> {
-    const document=validateDocument(JSON.parse(JSON.stringify(input)));
+    const stamped={...JSON.parse(JSON.stringify(input)),updatedAt:new Date().toISOString()};
+    const document=validateDocument(stamped);
     return this.serial(async()=> {
       let fresh = !handle;
       if (!handle) {await fs.mkdir(this.folder,{recursive:true});handle=this.register(path.join(this.folder,`${document.title.replace(/[^\p{L}\p{N} _-]/gu,'').trim().slice(0,70)||'Board'}-${randomUUID()}.lkmindmap`));}
@@ -91,7 +92,13 @@ export class BoardStorage {
     // Dialog selection explicitly authorizes this destination; establish its baseline now.
     const handle=this.register(file); const entry=this.entries.get(handle)!;
     try { const {raw}=await this.read(file); entry.fingerprint=hash(raw); }
-    catch(e:any) {if(e.code!=='ENOENT') throw e; await this.atomic(file,JSON.stringify(validateDocument(document)));entry.fingerprint=hash(JSON.stringify(document));return {handle,document,filename:file};}
+    catch(e:any) {
+      if(e.code!=='ENOENT') throw e;
+      const stamped={...JSON.parse(JSON.stringify(document)),updatedAt:new Date().toISOString()};
+      const next=validateDocument(stamped);
+      const raw=JSON.stringify(next);
+      await this.atomic(file,raw);entry.fingerprint=hash(raw);return {handle,document:next,filename:file};
+    }
     return this.save(handle,document);
   }
   async duplicate(input:BoardDocument) { const now=new Date().toISOString();return this.save(null,{...input,id:randomUUID(),title:(input.title+' copy').slice(0,200),createdAt:now,updatedAt:now}); }
